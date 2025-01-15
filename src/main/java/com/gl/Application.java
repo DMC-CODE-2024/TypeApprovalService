@@ -23,7 +23,12 @@ public class Application {
         } catch (Exception e) {
             log.error("Not able to fetch information for serverName " + e);
         }
-        Process.p5(new MySQLConnection().getConnection());
+       try (var c = new MySQLConnection().getConnection()) {
+            Process.p5(c);
+        } catch (Exception e) {
+            log.error("Error in Service  " + e);
+        }
+       // .p5(new MySQLConnection().getConnection());
         System.exit(0);
     }
 }
