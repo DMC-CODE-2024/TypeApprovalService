@@ -1,6 +1,8 @@
 package com.gl.P5Process;
 
 import com.gl.AlertAudit.AlertService;
+import com.gl.Application;
+import com.gl.Audit.ModulesAudit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -15,13 +17,24 @@ public class QueryExecuter {
     public static int runQuery(Connection conn, String query) {
         log.info("Query : {} ", query);
         var a = 0;
-        try (Statement stmt = conn.createStatement()) {
-            a = stmt.executeUpdate(query);
-            log.info("Rows Affected :  {}", a);
+        int auditId = 0;
+        long startTime = System.currentTimeMillis();
+        try {
+            auditId = ModulesAudit.insertModuleAudit(conn, "type approval", "Process completed for type approval", Application.serverName);
+            try (Statement stmt = conn.createStatement()) {
+                a = stmt.executeUpdate(query);
+                log.info("Rows Affected :  {}", a);
+                ModulesAudit.updateModuleAudit(conn, 200, "SUCCESS", "", auditId, startTime, a, a);
+            }
         } catch (Exception e) {
             var lastMethodName = Thread.currentThread().getStackTrace()[2].getMethodName();
             log.error(lastMethodName + " : Unable to run query: " + e.getLocalizedMessage() + " [Query] :" + query);
-            new AlertService().raiseAnAlert("alert1607", "Not able to update national whitelist table" , "TypeApprovalProcess", 0, conn);
+            new AlertService().raiseAnAlert("alert1607", "Not able to update national whitelist table", "TypeApprovalProcess", 0, conn);
+            try {
+                ModulesAudit.updateModuleAudit(conn, 500, "FAILURE", e.getMessage(), auditId, startTime, a, a);
+            } catch (Exception ex) {
+                log.error("Error updating audit trail " + ex);
+            }
         }
         return a;
     }
