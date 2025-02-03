@@ -10,38 +10,31 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
-
 public class QueryExecuter {
     static Logger log = LogManager.getLogger(QueryExecuter.class);
 
     public static int runQuery(Connection conn, String query) {
         log.info("Query : {} ", query);
         var a = 0;
-        int auditId = 0;
-        long startTime = System.currentTimeMillis();
         try {
-            auditId = ModulesAudit.insertModuleAudit(conn, "type approval", "Process completed for type approval", Application.serverName);
             try (Statement stmt = conn.createStatement()) {
                 a = stmt.executeUpdate(query);
                 log.info("Rows Affected :  {}", a);
-                ModulesAudit.updateModuleAudit(conn, 200, "SUCCESS", "", auditId, startTime, a, a);
             }
         } catch (Exception e) {
             var lastMethodName = Thread.currentThread().getStackTrace()[2].getMethodName();
             log.error(lastMethodName + " : Unable to run query: " + e.getLocalizedMessage() + " [Query] :" + query);
-            new AlertService().raiseAnAlert("alert1607", "Not able to update national whitelist table", "TypeApprovalProcess", 0, conn);
-            try {
-                ModulesAudit.updateModuleAudit(conn, 500, "FAILURE", e.getMessage(), auditId, startTime, a, a);
-            } catch (Exception ex) {
-                log.error("Error updating audit trail " + ex);
-            }
+            new AlertService().raiseAnAlert("alert1607", "Not able to update national whitelist table",
+                    "TypeApprovalProcess", 0, conn);
+            Application.failcount++;
         }
         return a;
     }
 
     public static String getLastRunDate(Connection conn) {
         String date = "2000-01-01";
-        String query = "  select  IFNULL(value, '" + date + "') as value from sys_param where tag='trc_nwl_typeapprove_last_run_time'";
+        String query = "  select  IFNULL(value, '" + date
+                + "') as value from sys_param where tag='trc_nwl_typeapprove_last_run_time'";
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(query);) {
             if (rs.next()) {
                 date = rs.getString("value");

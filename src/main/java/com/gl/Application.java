@@ -12,28 +12,24 @@ public class Application {
     static Logger log = LogManager.getLogger(Application.class);
     public static String audDb;
     public static String serverName;
+    public static int passcount;
+    public static int failcount;
 
     public static void main(String[] args) {
-        int auditId = 0;
-        long startTime = System.currentTimeMillis();
         try {
             audDb = propertyReader.getConfigPropValue("auddbName");
             serverName = propertyReader.getConfigPropValue("serverName");
+            passcount = 0;
+            failcount = 0;
         } catch (Exception e) {
             log.error("Not able to fetch information for serverName " + e);
         }
         try (var c = new MySQLConnection().getConnection()) {
-
+            int auditId = ModulesAudit.insertModuleAudit(c, "Type Approval");
             Process.p5(c);
-
+            ModulesAudit.updateModuleAudit(c, 1, passcount, failcount, auditId);
         } catch (Exception e) {
             log.error("Error in Service  " + e);
-            try (var c = new MySQLConnection().getConnection()) {
-                long endTime = System.currentTimeMillis();
-                ModulesAudit.updateModuleAudit(c, 500, "FAILURE", e.getMessage(), auditId, startTime, 0, 0);
-            } catch (Exception ex) {
-                log.error("Error updating audit trail " + ex);
-            }
         }
         System.exit(0);
     }
